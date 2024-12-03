@@ -2,7 +2,7 @@
 
 # This script is for use in cubic during the priming of custom ISO file for Linux Mint xfce installer and includes a menu entry to a BASH script generated for updating Zoom and Google Chrome.
 # This script was developed for the Laptop Ministry at Peoples Church of Chicago in 2024.
-# This sciprt is released as Open Source GNU license. This version 1.3 alpha.
+# This sciprt is released as Open Source GNU license. This version 1.4 alpha.
 # There are absolutley no warranty or liability in the use of this script.
 
 # Exit on errors
@@ -16,38 +16,50 @@ echo "Adding repositories for Google Chrome..."
 wget -qO - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list
 
+# Enable snap support for Linux Mint
+echo "Enabling snap support on Linux Mint..."
+if [ -f /etc/apt/preferences.d/nosnap.pref ]; then
+    sudo rm /etc/apt/preferences.d/nosnap.pref
+fi
+apt update
+apt install -y snapd
+
 # Update package list after adding new repositories
 apt update
 
 echo "Installing software packages..."
-# Install applications
+# Install applications, skipping unavailable packages
 apt install -y \
     google-chrome-stable \
     dragonplayer \
     mpv \
     gthumb \
     krita \
-    gtkpod \
     ffmpeg \
     libreoffice \
     audacity \
-    losslesscut \
     imagemagick \
-    telegram-desktop \
     pithos \
     geany \
-    bibletime \
-    snapd
+    bibletime || true
 
-echo "Installing Zoom by downloading the latest package..."
+echo "Handling additional software installations..."
+# Install Telegram Desktop via PPA or direct download
+add-apt-repository -y ppa:atareao/telegram
+apt update && apt install -y telegram-desktop || echo "Telegram Desktop could not be installed."
+
+# Install LosslessCut via Snap
+snap install losslesscut || echo "LosslessCut installation failed via Snap."
+
 # Download and install Zoom
+echo "Installing Zoom by downloading the latest package..."
 wget -O /tmp/zoom.deb https://zoom.us/client/latest/zoom_amd64.deb
 dpkg -i /tmp/zoom.deb || apt-get -f install -y
 rm /tmp/zoom.deb
 
 # Install snap packages
 echo "Installing snap packages..."
-snap install webOffice365Desktop
+snap install webOffice365Desktop || echo "Snap installation failed."
 
 # Install yt-dlp and front-end
 echo "Installing yt-dlp with pipx..."
@@ -58,7 +70,7 @@ echo 'alias yt-dlp-update="pipx upgrade yt-dlp"' >> ~/.bashrc
 source ~/.bashrc
 
 # Install ffmpeg front-end (example: Handbrake GUI if available)
-apt install -y handbrake
+apt install -y handbrake || echo "Handbrake installation failed."
 
 echo "Setting up timezone to Chicago / Central Time..."
 ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime
@@ -111,35 +123,5 @@ Terminal=true
 Type=Application
 Categories=System;Utility;
 EOF
-
-echo "Configuring ISO installer to wipe disk before installation..."
-cat <<EOF > /usr/local/bin/wipe-and-install.sh
-#!/bin/bash
-echo "Detecting storage devices..."
-lsblk -dp | grep -E 'disk' | awk '{print \$1 " - " \$4}'
-echo "Please select the device to wipe (e.g., /dev/sda):"
-read -r DEVICE
-echo "Wiping selected device \$DEVICE..."
-read -p "Are you sure? This will destroy all data on \$DEVICE. (yes/no): " CONFIRM
-if [ "\$CONFIRM" == "yes" ]; then
-  if [ -d /sys/block/\$(basename \$DEVICE)/queue/rotational ]; then
-    ROTATIONAL=\$(cat /sys/block/\$(basename \$DEVICE)/queue/rotational)
-    if [ "\$ROTATIONAL" -eq 1 ]; then
-      echo "Detected HDD. Performing full dd zero-write wipe..."
-      dd if=/dev/zero of=\$DEVICE bs=1M status=progress
-    else
-      echo "Detected SSD. Performing secure trim wipe..."
-      blkdiscard \$DEVICE
-    fi
-    echo "Wipe complete."
-  else
-    echo "Unable to determine device type. Skipping wipe."
-  fi
-else
-  echo "Wipe canceled."
-fi
-echo "Proceeding with installation..."
-EOF
-chmod +x /usr/local/bin/wipe-and-install.sh
 
 echo "Customization complete. Your ISO is ready for further processing."
