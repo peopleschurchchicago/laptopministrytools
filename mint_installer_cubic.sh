@@ -1,22 +1,19 @@
 #!/bin/bash
 
-# This script is for use in cubic during the priming of custom ISO file for Linux Mint xfce installer.
+# This script is for use in cubic during the priming of custom ISO file for Linux Mint xfce installer and includes a menu entry to a BASH script generated for updating Zoom and Google Chrome.
 # This script was developed for the Laptop Ministry at Peoples Church of Chicago in 2024.
-# This sciprt is released as Open Source GNU license. This version 1.0 alpha.
+# This sciprt is released as Open Source GNU license. This version 1.1 alpha.
 # There are absolutley no warranty or liability in the use of this script.
 
 
 # Exit on errors
+
 set -e
 
 echo "Updating and upgrading packages..."
 apt update && apt upgrade -y
 
-echo "Adding repositories for Zoom and Google Chrome..."
-# Add Zoom repository
-wget -qO - https://zoom.us/linux/download/pubkey | gpg --dearmor -o /usr/share/keyrings/zoom-archive-keyring.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/zoom-archive-keyring.gpg] https://zoom.us/linux/debian stable main" | tee /etc/apt/sources.list.d/zoom.list
-
+echo "Adding repositories for Google Chrome..."
 # Add Google Chrome repository
 wget -qO - https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome-keyring.gpg
 echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome-keyring.gpg] http://dl.google.com/linux/chrome/deb/ stable main" | tee /etc/apt/sources.list.d/google-chrome.list
@@ -27,7 +24,6 @@ apt update
 echo "Installing software packages..."
 # Install applications
 apt install -y \
-    zoom \
     google-chrome-stable \
     dragonplayer \
     mpv \
@@ -44,6 +40,12 @@ apt install -y \
     geany \
     bibletime \
     snapd
+
+echo "Installing Zoom from Linux Mint repositories..."
+# Download Zoom package directly from Zoom's official website
+wget -O /tmp/zoom.deb https://zoom.us/client/latest/zoom_amd64.deb
+dpkg -i /tmp/zoom.deb || apt-get -f install -y  # Fix dependencies if needed
+rm /tmp/zoom.deb
 
 # Install snap packages
 echo "Installing snap packages..."
@@ -75,6 +77,42 @@ CREATE_MAIL_SPOOL=no
 EOF
 echo "Prompting user to change password at first login..."
 passwd -e home
+
+# Create update script
+echo "Creating update script for Zoom and Google Chrome..."
+cat <<EOF > /usr/local/bin/update-software.sh
+#!/bin/bash
+# Update system and Google Chrome
+echo "Updating system and Google Chrome..."
+sudo apt update && sudo apt upgrade -y
+
+# Download the latest Zoom package
+echo "Downloading the latest Zoom package..."
+wget -O /tmp/zoom.deb https://zoom.us/client/latest/zoom_amd64.deb
+
+# Install Zoom package
+echo "Installing the latest Zoom version..."
+sudo dpkg -i /tmp/zoom.deb || sudo apt-get -f install -y
+
+# Clean up
+rm /tmp/zoom.deb
+
+echo "All updates are complete."
+EOF
+chmod +x /usr/local/bin/update-software.sh
+
+# Create a desktop menu icon for the update script
+echo "Creating desktop menu entry for Update Zoom Etc..."
+cat <<EOF > /usr/share/applications/update-zoom-etc.desktop
+[Desktop Entry]
+Name=Update Zoom Etc
+Comment=Update Zoom and Google Chrome to the latest versions
+Exec=sudo /usr/local/bin/update-software.sh
+Icon=system-software-update
+Terminal=true
+Type=Application
+Categories=System;Utility;
+EOF
 
 echo "Configuring ISO installer to wipe disk before installation..."
 cat <<EOF > /usr/local/bin/wipe-and-install.sh
