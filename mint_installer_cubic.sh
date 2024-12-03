@@ -2,7 +2,7 @@
 
 # This script is for use in cubic during the priming of custom ISO file for Linux Mint xfce installer and includes a menu entry to a BASH script generated for updating Zoom and Google Chrome.
 # This script was developed for the Laptop Ministry at Peoples Church of Chicago in 2024.
-# This sciprt is released as Open Source GNU license. This version 1.2 alpha.
+# This sciprt is released as Open Source GNU license. This version 1.3 alpha.
 # There are absolutley no warranty or liability in the use of this script.
 
 # Exit on errors
@@ -39,8 +39,8 @@ apt install -y \
     bibletime \
     snapd
 
+echo "Installing Zoom by downloading the latest package..."
 # Download and install Zoom
-echo "Installing Zoom..."
 wget -O /tmp/zoom.deb https://zoom.us/client/latest/zoom_amd64.deb
 dpkg -i /tmp/zoom.deb || apt-get -f install -y
 rm /tmp/zoom.deb
